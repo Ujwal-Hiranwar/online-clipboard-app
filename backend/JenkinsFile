@@ -1,0 +1,69 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_IMAGE_NAME = 'clipboardimage' 
+    }
+
+    stages {
+        
+        // Stage 1: Checkout code from GitHub
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Ujwal-Hiranwar/springboot-backend.git'
+            }
+        }
+
+        
+        stage('Build') {
+            steps {
+                script {
+                    sh 'mvn clean package -DskipTests=true'
+                }
+            }
+        }
+
+        
+        stage('Test') {
+            steps {
+                script {
+                    sh 'mvn test'
+                }
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                script {
+                    
+                    def imageTag = "${env.GIT_COMMIT}"
+                    sh "docker build -t ${DOCKERHUB_USERNAME}/${DOCKER_IMAGE_NAME}:${imageTag} ."
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh 'docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD'
+                    }
+                    def imageTag = "${env.GIT_COMMIT}"
+                    sh "docker push ${DOCKERHUB_USERNAME}/${DOCKER_IMAGE_NAME}:${imageTag}"
+                }
+            }
+        }
+    }
+
+    post {
+
+        success {
+            echo 'Pipeline executed successfully!'
+        }
+
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
