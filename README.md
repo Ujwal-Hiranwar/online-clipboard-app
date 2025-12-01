@@ -18,7 +18,6 @@ This is a Spring Boot-based backend application for an Online Clipboard system. 
 - **Jenkins CI/CD**: Includes a `Jenkinsfile` for automated building, testing, and deployment.
 - **Docker Support**: Includes a `Dockerfile` for containerizing the application.
 - **Secure and Scalable**: Built with Spring Boot's robust features for security and scalability.
-
 ## Prerequisites
 To run this project, ensure you have the following installed on your system:
 - **Java**: JDK 17 or later
