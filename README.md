@@ -11,7 +11,7 @@ This repository contains the source code for a full-stack online clipboard appli
 ## Overview
 This is a Spring Boot-based backend application for an Online Clipboard system. The application provides a RESTful API to manage clipboard data, allowing users to store, retrieve, and share text snippets efficiently. It is built using Spring Boot and integrates with Jenkins for CI/CD and Docker for containerization, ensuring easy deployment and scalability.
 
-**Repository URL**: [https://github.com/Ujwal-Hiranwar/springboot-backend](https://github.com/Ujwal-Hiranwar/springboot-backend)
+**Repository URL**: [https://github.com/Ujwal-Hiranwar/online-clipboard-app.git](https://github.com/Ujwal-Hiranwar/online-clipboard-app.git)
 
 ## Features
 - **End to End Encryption**: Provides endpoints for creating, reading, updating, and deleting clipboard entries.
