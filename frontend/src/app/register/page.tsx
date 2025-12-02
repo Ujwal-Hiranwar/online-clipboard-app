@@ -22,11 +22,34 @@ export default function RegisterPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    if (password !== confirmPassword) {
+      alert("Passwords do not match")
+      setIsLoading(false)
+      return
+    }
 
-    setIsLoading(false)
-    // Handle registration logic here
+    try {
+      const response = await fetch("/api/users/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username: email, password }),
+      })
+
+      if (response.ok) {
+        // Handle successful registration
+        console.log("Registration successful")
+        window.location.href = "/login"
+      } else {
+        // Handle registration error
+        console.error("Registration failed")
+      }
+    } catch (error) {
+      console.error("An error occurred during registration", error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (

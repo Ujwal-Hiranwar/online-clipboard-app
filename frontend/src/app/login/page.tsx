@@ -21,11 +21,26 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const response = await fetch("/api/users/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username: email, password }),
+      })
 
-    setIsLoading(false)
-    // Handle login logic here
+      if (response.ok) {
+        localStorage.setItem("username", email)
+        window.location.href = "/"
+      } else {
+        console.error("Login failed")
+      }
+    } catch (error) {
+      console.error("An error occurred during login", error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
