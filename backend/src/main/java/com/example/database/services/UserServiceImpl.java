@@ -91,4 +91,22 @@ public class UserServiceImpl implements UserService {
         }
         return users;
     }
+
+    @Override
+    public boolean updateUserProfile(User user) {
+        // The user needs to execute this SQL statement on their database:
+        // ALTER TABLE users ADD COLUMN name VARCHAR(255), ADD COLUMN gender VARCHAR(255);
+        String sql = "UPDATE users SET name = ?, gender = ? WHERE username = ?";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, user.getName());
+            ps.setString(2, user.getGender());
+            ps.setString(3, user.getUsername());
+            int rowsAffected = ps.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            logger.error("Error updating user profile", e);
+            return false;
+        }
+    }
 }

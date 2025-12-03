@@ -7,4 +7,5 @@ public interface UserService {
     boolean registerUser(User user);
     boolean loginUser(User user);
     List<User> getAllUsers();
+    boolean updateUserProfile(User user);
 }

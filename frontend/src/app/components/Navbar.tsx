@@ -1,16 +1,21 @@
+'use client'
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { Menu } from "lucide-react"
+import { Menu, LogOut, History, User, Edit } from "lucide-react"
+import { BACKEND_URL } from "@lib/constants";
+import axios from "axios"
 
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 export default function Navbar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [username, setUsername] = useState<string | null>(null)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
 
   useEffect(() => {
     const storedUsername = localStorage.getItem("username")
@@ -18,6 +23,19 @@ export default function Navbar() {
       setUsername(storedUsername)
     }
   }, [])
+
+  const handleLogout = async () => {
+    try {
+      await axios.post(`${BACKEND_URL}/api/logout`)
+      localStorage.removeItem("username")
+      setUsername(null)
+      router.push("/login")
+    } catch (error) {
+      console.error("Logout failed:", error)
+      // Handle logout error, maybe show a notification
+    }
+    setIsOpen(false)
+  }
 
   return (
     <header className="border-b border-border bg-background">
@@ -39,13 +57,40 @@ export default function Navbar() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <nav className="sm:hidden  flex gap-4">
+          <nav className="hidden md:flex items-center gap-4">
             {username ? (
               <>
                 <Button variant={pathname === "/history" ? "default" : "outline"} asChild>
-                  <Link href="/history">History</Link>
+                  <Link href="/history" className="flex items-center">
+                    <History className="mr-2 h-4 w-4" />
+                    History
+                  </Link>
                 </Button>
-                <span className="text-lg font-medium">{username}</span>
+                <div
+                  className="relative"
+                  onMouseEnter={() => setIsProfileOpen(true)}
+                  onMouseLeave={() => setIsProfileOpen(false)}
+                >
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center cursor-pointer">
+                    <User className="h-6 w-6 text-gray-600" />
+                  </div>
+                  {isProfileOpen && (
+                    <div className="absolute top-full right-0 mt-2 w-56 bg-white border rounded-md shadow-lg p-4 z-10">
+                      <p className="font-semibold text-center truncate">{username}</p>
+                      <hr className="my-2" />
+                      <Button variant="ghost" className="w-full justify-start" asChild>
+                        <Link href="/profile">
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit Profile
+                        </Link>
+                      </Button>
+                      <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-red-500 hover:text-red-600">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Logout
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
               <>
@@ -71,14 +116,39 @@ export default function Navbar() {
             <div className="flex flex-col gap-6 mt-8">
               {username ? (
                 <>
+                  <div
+                    className="relative"
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  >
+                    <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center cursor-pointer mx-auto">
+                      <User className="h-7 w-7 text-gray-600" />
+                    </div>
+                    {isProfileOpen && (
+                       <div className="mt-2 w-full bg-white border rounded-md shadow-lg p-4 z-10">
+                       <p className="font-semibold text-center truncate">{username}</p>
+                     </div>
+                    )}
+                  </div>
                   <Link
                     href="/history"
-                    className={`text-lg font-medium ${pathname === "/history" ? "text-primary" : ""}`}
+                    className={`text-lg font-medium ${pathname === "/history" ? "text-primary" : ""} flex items-center`}
                     onClick={() => setIsOpen(false)}
                   >
+                    <History className="mr-2 h-4 w-4" />
                     History
                   </Link>
-                  <span className="text-lg font-medium">{username}</span>
+                  <Link
+                    href="/profile"
+                    className={`text-lg font-medium ${pathname === "/profile" ? "text-primary" : ""} flex items-center`}
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Profile
+                  </Link>
+                  <Button variant="outline" onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </Button>
                 </>
               ) : (
                 <>
@@ -105,4 +175,3 @@ export default function Navbar() {
     </header>
   )
 }
-

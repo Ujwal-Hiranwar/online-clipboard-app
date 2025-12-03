@@ -18,7 +18,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@lib/*": ["./lib/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/about", "src/app/page.jsx", "src/app/register/page.jsx", "src/app/layout.js", "src/app/components/SubmitButtion.jsx", "src/app/components/AlertBox.jsx"],
