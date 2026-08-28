@@ -17,20 +17,42 @@ public class ClipboardModel {
     @Column(name = "E_ID", nullable = false)
     private Long id;
 
-    @Column(name = "created_user_rid", nullable = true)
-    private Integer createdUserRid;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_user_rid")
+    private User user;
 
     @Column(name = "deleted_by_user", nullable = false, columnDefinition = "TINYINT(1)")
     private Boolean deletedByUser = false;
 
-    @Column(name = "encrypted_content", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "encrypted_content", columnDefinition = "TEXT")
     private String encryptedContent;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "content_kind", nullable = false)
+    private ClipboardContentKind contentKind = ClipboardContentKind.TEXT;
+
+    @Lob
+    @Basic(fetch = FetchType.LAZY)
+    @Column(name = "file_data", columnDefinition = "LONGBLOB")
+    private byte[] fileData;
+
+    @Column(name = "file_name")
+    private String fileName;
+
+    @Column(name = "file_content_type")
+    private String fileContentType;
+
+    @Column(name = "file_size")
+    private Long fileSize;
 
     @Column(name = "encryption_key", nullable = true, columnDefinition = "TEXT")
     private String encryptionKey;
 
     @Column(name = "otp", unique = true, length = 4)
     private String otp;
+
+    @Column(name = "share_token", unique = true, length = 64)
+    private String shareToken;
 
     @Column(name = "expiry_time", nullable = true)
     private LocalDateTime expiryTime;

@@ -1,11 +1,10 @@
 'use client'
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Menu, LogOut, History, User, Edit } from "lucide-react"
-import { BACKEND_URL } from "@lib/constants";
-import axios from "axios"
+import { useAuth } from "./AuthProvider"
 
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -14,21 +13,12 @@ export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
-  const [username, setUsername] = useState<string | null>(null)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
-
-  useEffect(() => {
-    const storedUsername = localStorage.getItem("username")
-    if (storedUsername) {
-      setUsername(storedUsername)
-    }
-  }, [])
+  const { user, logout } = useAuth()
 
   const handleLogout = async () => {
     try {
-      await axios.post(`${BACKEND_URL}/api/logout`)
-      localStorage.removeItem("username")
-      setUsername(null)
+      await logout()
       router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
@@ -58,7 +48,7 @@ export default function Navbar() {
           transition={{ duration: 0.5 }}
         >
           <nav className="hidden md:flex items-center gap-4">
-            {username ? (
+            {user ? (
               <>
                 <Button variant={pathname === "/history" ? "default" : "outline"} asChild>
                   <Link href="/history" className="flex items-center">
@@ -76,7 +66,7 @@ export default function Navbar() {
                   </div>
                   {isProfileOpen && (
                     <div className="absolute top-full right-0 mt-2 w-56 bg-white border rounded-md shadow-lg p-4 z-10">
-                      <p className="font-semibold text-center truncate">{username}</p>
+                      <p className="font-semibold text-center truncate">{user.email}</p>
                       <hr className="my-2" />
                       <Button variant="ghost" className="w-full justify-start" asChild>
                         <Link href="/profile">
@@ -114,7 +104,7 @@ export default function Navbar() {
           </SheetTrigger>
           <SheetContent side="right" className="w-[250px] sm:w-[300px]">
             <div className="flex flex-col gap-6 mt-8">
-              {username ? (
+              {user ? (
                 <>
                   <div
                     className="relative"
@@ -125,7 +115,7 @@ export default function Navbar() {
                     </div>
                     {isProfileOpen && (
                        <div className="mt-2 w-full bg-white border rounded-md shadow-lg p-4 z-10">
-                       <p className="font-semibold text-center truncate">{username}</p>
+                       <p className="font-semibold text-center truncate">{user.email}</p>
                      </div>
                     )}
                   </div>

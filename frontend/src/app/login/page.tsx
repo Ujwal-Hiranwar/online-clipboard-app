@@ -11,31 +11,23 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Navbar from '../components/Navbar'
+import { useAuth } from "../components/AuthProvider"
+import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const { login } = useAuth()
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/users/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username: email, password }),
-      })
-
-      if (response.ok) {
-        localStorage.setItem("username", email)
-        window.location.href = "/"
-      } else {
-        console.error("Login failed")
-      }
+      await login(email, password)
+      router.push("/")
     } catch (error) {
       console.error("An error occurred during login", error)
     } finally {
@@ -132,4 +124,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

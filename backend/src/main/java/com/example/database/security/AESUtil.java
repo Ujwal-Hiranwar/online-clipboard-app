@@ -35,4 +35,18 @@ public class AESUtil {
         byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedContent));
         return new String(decryptedBytes);
     }
+
+    public static byte[] encrypt(byte[] content, String secretKey) throws Exception {
+        SecretKeySpec keySpec = new SecretKeySpec(Base64.getDecoder().decode(secretKey), ALGORITHM);
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+        return cipher.doFinal(content);
+    }
+
+    public static byte[] decrypt(byte[] encryptedContent, String secretKey) throws Exception {
+        SecretKeySpec keySpec = new SecretKeySpec(Base64.getDecoder().decode(secretKey), ALGORITHM);
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.DECRYPT_MODE, keySpec);
+        return cipher.doFinal(encryptedContent);
+    }
 }

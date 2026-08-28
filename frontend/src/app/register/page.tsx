@@ -11,12 +11,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Navbar from "../components/Navbar"
+import { api } from "@/src/lib/api"
+import { useRouter } from "next/navigation"
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,22 +32,8 @@ export default function RegisterPage() {
     }
 
     try {
-      const response = await fetch("/api/users/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username: email, password }),
-      })
-
-      if (response.ok) {
-        // Handle successful registration
-        console.log("Registration successful")
-        window.location.href = "/login"
-      } else {
-        // Handle registration error
-        console.error("Registration failed")
-      }
+      await api.post("/api/auth/register", { email, password })
+      router.push("/login")
     } catch (error) {
       console.error("An error occurred during registration", error)
     } finally {
@@ -154,4 +143,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-

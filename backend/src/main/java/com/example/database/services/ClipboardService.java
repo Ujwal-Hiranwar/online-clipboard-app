@@ -7,11 +7,13 @@ import java.util.Optional;
 
 public interface ClipboardService {
 
-    ClipboardModel saveClipboardData(ClipboardModel data);
+    ClipboardModel saveClipboardData(ClipboardModel data, java.security.Principal principal);
 
     Optional<ClipboardModel> getByOtp(String otp);
 
     List<ClipboardModel> getAllClipboardData();
+
+    List<ClipboardModel> getUserClipboardData(String email);
 
     void deleteById(Long id);
 }

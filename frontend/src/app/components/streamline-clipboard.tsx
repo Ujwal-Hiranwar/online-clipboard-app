@@ -1,5 +1,5 @@
 'use client'
-import axios from "axios";
+import { api } from "@/src/lib/api";
 import { useState, useRef } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,15 +9,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { BACKEND_URL } from "@lib/constants";
-import { Send, Clipboard, Lock, File, Upload, Download, X, FileText, Share2, Eye, EyeOff, Shield, RefreshCw } from 'lucide-react'
+import { Send, Clipboard, Lock, File, Upload, Download, X, FileText, Share2, Shield, Copy, Check } from 'lucide-react'
 import { AlertBox } from './AlertBox'
 export function StreamlinedClipboard() {
   const [activeTab, setActiveTab] = useState('share')
   const [contentType, setContentType] = useState<'text' | 'file'>('text')
   const [inputContent, setInputContent] = useState('')
   const [outputContent, setOutputContent] = useState('')
+  const [receivedFile, setReceivedFile] = useState<{ name: string; size: number; contentType: string } | null>(null)
   const [shareotp, setShareOtp] = useState('')
+  const [shareLink, setShareLink] = useState('')
+  const [isLinkCopied, setIsLinkCopied] = useState(false)
   const [enteredotp, setEnteredotp] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isEncrypted, setIsEncrypted] = useState(false)
@@ -32,7 +34,7 @@ export function StreamlinedClipboard() {
 
   const handleTextSubmit = async () => {
 
-    if (inputContent === "" || inputContent === null) {
+    if (contentType === 'text' && (inputContent === "" || inputContent === null)) {
 
       setIsAlertVisible({
         showNullInputAlert: true,
@@ -40,7 +42,7 @@ export function StreamlinedClipboard() {
         showBoundExeedAlert: false
       })
     }
-    else if (inputContent.length > 500) {
+    else if (contentType === 'text' && inputContent.length > 500) {
       setIsAlertVisible({
         showNullInputAlert: false,
         showOTPAlert: false,
@@ -57,11 +59,33 @@ export function StreamlinedClipboard() {
 
 
 
-      const oneTimePassword = Math.floor(1000 + Math.random() * 9000).toString()
       futureTime.setMinutes(futureTime.getMinutes() + Number(expirationTime))
-      if (isEncrypted == true) {
+      if (contentType === 'file') {
+        if (!selectedFile) {
+          setIsAlertVisible({ showNullInputAlert: true, showOTPAlert: false, showBoundExeedAlert: false })
+          return
+        }
+        if (selectedFile.size > 10 * 1024 * 1024) {
+          setIsAlertVisible({ showNullInputAlert: false, showOTPAlert: false, showBoundExeedAlert: true })
+          return
+        }
         try {
-          const response = await axios.post(`${BACKEND_URL}/api/encrypted/save`, {
+          const formData = new FormData()
+          formData.append("file", selectedFile)
+          formData.append("expiryTime", futureTime.toISOString())
+          formData.append("encrypted", String(isEncrypted))
+          const response = await api.post("/api/files", formData)
+          setShareOtp(response.data.otp)
+          setShareLink(`${window.location.origin}/receive?token=${response.data.shareToken}`)
+        } catch (error) {
+          console.error("Error uploading file:", error)
+          return
+        }
+      } else {
+        const oneTimePassword = Math.floor(1000 + Math.random() * 9000).toString()
+        if (isEncrypted == true) {
+        try {
+          const response = await api.post(`/api/encrypted/save`, {
             "createdUserRid": null,
             "deletedByUser": false,
             "content": inputContent,
@@ -70,14 +94,14 @@ export function StreamlinedClipboard() {
           }, {
             headers: { "Content-Type": "application/json" },
           });
-          console.log("Clipboard Data:", response.data);
+          setShareLink(`${window.location.origin}/receive?token=${response.data.shareToken}`)
         } catch (error) {
           console.error("Error sending clipboard data:", error);
           throw error;
         }
-      } else {
+        } else {
         try {
-          const response = await axios.post(`${BACKEND_URL}/api/post/text`, {
+          const response = await api.post(`/api/post/text`, {
             "createdUserRid": null,
             "deletedByUser": false,
             "encryptedContent": inputContent,
@@ -87,14 +111,15 @@ export function StreamlinedClipboard() {
           }, {
             headers: { "Content-Type": "application/json" },
           });
-          console.log("Clipboard Data:", response.data);
+          setShareLink(`${window.location.origin}/receive?token=${response.data.shareToken}`)
         } catch (error) {
           console.log("error in sending data to backend " + error)
           throw error;
         }
-      }
+        }
 
-      setShareOtp(oneTimePassword)
+        setShareOtp(oneTimePassword)
+      }
 
     }
 
@@ -131,16 +156,65 @@ export function StreamlinedClipboard() {
 
   const handleReceive = async () => {
 
+    let receiveCode = enteredotp.trim()
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/encrypted/retrieve/${enteredotp.toString()}`);
+      const parsed = new URL(receiveCode)
+      const token = parsed.searchParams.get('token')
+      if (token) {
+        setActiveTab('receive')
+        window.location.href = `/receive?token=${encodeURIComponent(token)}`
+        return
+      }
+    } catch { /* The input is an OTP, not a URL. */ }
+
+    try {
+      const metadata = await api.get(`/api/get/text/${receiveCode}`)
+      if (metadata.data.contentKind === "FILE") {
+        setReceivedFile({ name: metadata.data.fileName, size: metadata.data.fileSize, contentType: metadata.data.fileContentType })
+        setOutputContent("")
+        return metadata.data
+      }
+      const response = await api.get(`/api/encrypted/retrieve/${receiveCode}`)
+      setReceivedFile(null)
       setOutputContent(response.data)
-      return response.data;
+      return response.data
     } catch (error) {
       console.error("Error fetching clipboard data:", error);
       return null;
     }
 
 
+  }
+
+  const copyShareLink = async () => {
+    if (!shareLink) return
+    await navigator.clipboard.writeText(shareLink)
+    setIsLinkCopied(true)
+    window.setTimeout(() => setIsLinkCopied(false), 2000)
+  }
+
+  const shareLinkWithFriends = async () => {
+    if (!shareLink) return
+    if (navigator.share) {
+      await navigator.share({ title: 'Shared clipboard content', url: shareLink }).catch(() => undefined)
+    } else {
+      await copyShareLink()
+    }
+  }
+
+  const downloadReceivedFile = async () => {
+    if (!receivedFile) return
+    try {
+      const response = await api.get(`/api/files/${enteredotp}`, { responseType: "blob" })
+      const url = URL.createObjectURL(response.data)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = receivedFile.name
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (error) { console.error("Error downloading file:", error) }
   }
 
 
@@ -202,6 +276,7 @@ export function StreamlinedClipboard() {
                   <Input
                     type="file"
                     onChange={handleFileSelect}
+                    accept=".pdf,.txt,.csv,.json,.xml,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z"
                     className='hidden'
                     ref={fileInputRef}
                     id="file-upload"
@@ -213,11 +288,14 @@ export function StreamlinedClipboard() {
                   >
                     <Upload className="mr-2 h-4 w-4" /> Select File
                   </Button>
+                  <p className="text-xs text-gray-500">
+                    Accepted formats: PDF, PPT, DOCX, ZIP, etc. Maximum size: 10 MB.
+                  </p>
                   {selectedFile && (
                     <div className="flex items-center bg-gray-100 rounded p-2">
                       <File className="h-4 w-4 mr-2" />
                       <span className="text-sm truncate flex-grow">
-                        {selectedFile.name}
+                        {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
                       </span>
                       <Button
                         variant="ghost"
@@ -238,7 +316,7 @@ export function StreamlinedClipboard() {
                   onCheckedChange={setIsEncrypted}
                 />
 
-                <Label htmlFor="encrypt-switch">End-to-end Encryption</Label>
+                <Label htmlFor="encrypt-switch">Encrypt before storing</Label>
               </div>
 
 
@@ -274,6 +352,22 @@ export function StreamlinedClipboard() {
 
               </div>
 
+              {shareLink && (
+                <div className="space-y-2 rounded-md border bg-gray-50 p-3">
+                  <Label htmlFor="share-link">Shareable link</Label>
+                  <div className="flex gap-2">
+                    <Input id="share-link" value={shareLink} readOnly className="min-w-0" />
+                    <Button type="button" variant="outline" size="icon" onClick={copyShareLink} aria-label="Copy shareable link">
+                      {isLinkCopied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                    <Button type="button" variant="outline" size="icon" onClick={shareLinkWithFriends} aria-label="Share link">
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {isLinkCopied && <p className="text-xs text-green-600">Link copied to clipboard.</p>}
+                </div>
+              )}
+
             </div>
           </TabsContent>
           <TabsContent value="receive">
@@ -290,7 +384,7 @@ export function StreamlinedClipboard() {
                 </Button>
               </div>
               <Textarea
-                placeholder="Received content will appear here..."
+                placeholder={receivedFile ? `File ready: ${receivedFile.name}` : "Received content will appear here..."}
                 value={outputContent}
                 readOnly
                 className="min-h-[150px]"
@@ -299,7 +393,7 @@ export function StreamlinedClipboard() {
                 <Button variant="outline" onClick={() => { navigator.clipboard.writeText(outputContent); console.log("copied") }} className="w-40">
                   <Clipboard className="mr-2 h-4 w-4" /> Copy
                 </Button>
-                <Button variant="outline" className="w-40">
+                <Button variant="outline" className="w-40" onClick={downloadReceivedFile} disabled={!receivedFile}>
                   <Download className="mr-2 h-4 w-4" /> Download
                 </Button>
               </div>

@@ -1,23 +1,25 @@
 package com.example.database.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Transient;
+import jakarta.persistence.*;
 
+@Entity
+@Table(name = "users")
 public class User {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
     private String username;
+
     @Column(name = "password_hash")
     private String passwordHash;
+
+    @Column(nullable = false, unique = true)
     private String email;
+
     private String salt;
-
-    public String getSalt() {
-        return salt;
-    }
-
-    public void setSalt(String salt) {
-        this.salt = salt;
-    }
 
     @Transient
     private String password;
@@ -25,20 +27,24 @@ public class User {
     private String name;
     private String gender;
 
-    public String getName() {
-        return name;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role = Role.USER;
+
+    public Long getId() {
+        return id;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setId(Long id) {
+        this.id = id;
     }
 
-    public String getGender() {
-        return gender;
+    public String getSalt() {
+        return salt;
     }
 
-    public void setGender(String gender) {
-        this.gender = gender;
+    public void setSalt(String salt) {
+        this.salt = salt;
     }
 
     public String getPassword() {
@@ -72,4 +78,23 @@ public class User {
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
     }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
 }

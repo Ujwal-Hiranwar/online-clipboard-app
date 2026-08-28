@@ -1,40 +1,36 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import axios from 'axios'
-import { BACKEND_URL } from "@lib/constants";
+import { api } from "@/src/lib/api";
+import { useAuth } from '../components/AuthProvider'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { AlertBox } from '../components/AlertBox'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 
 export default function ProfilePage() {
   const [name, setName] = useState('')
   const [gender, setGender] = useState('')
-  const [username, setUsername] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{type: 'success' | 'error', message: string} | null>(null)
+  const { user, loading, refreshUser } = useAuth()
 
   useEffect(() => {
-    const storedUsername = localStorage.getItem('username')
-    if (storedUsername) {
-      setUsername(storedUsername)
-    }
-  }, [])
+    if (user) { setName(user.name || ''); setGender(user.gender || '') }
+  }, [user])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!username) {
+    if (!user) {
       setFeedback({ type: 'error', message: 'You must be logged in to update your profile.' })
       return
     }
 
     try {
-      const response = await axios.put(`${BACKEND_URL}/api/users/profile`, {
-        username,
-        name,
-        gender
-      })
+      await api.put(`/api/users/profile`, { name, gender })
+      await refreshUser()
       setFeedback({ type: 'success', message: 'Profile updated successfully!' })
     } catch (error) {
       setFeedback({ type: 'error', message: 'Failed to update profile. Please try again.' })
@@ -46,8 +42,15 @@ export default function ProfilePage() {
     setFeedback(null)
   }
 
+  if (loading) return <div className="p-10 text-center">Loading...</div>
+  if (!user) return <div className="p-10 text-center">Please log in to edit your profile.</div>
   return (
     <div className="flex flex-col items-center pt-10 min-h-[calc(100vh-8rem)]">
+      <div className="w-full max-w-md">
+        <Button variant="outline" asChild>
+          <Link href="/"><ArrowLeft className="mr-2 h-4 w-4" />Back to clipboard</Link>
+        </Button>
+      </div>
       <div className="absolute top-20 w-full max-w-md">
         {feedback && <AlertBox type={feedback.type} heading={feedback.type === 'success' ? 'Success' : 'Error'} message={feedback.message} isVisible={true} onClose={closeAlert} />}
       </div>
