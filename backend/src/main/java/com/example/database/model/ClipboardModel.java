@@ -21,7 +21,7 @@ public class ClipboardModel {
     @JoinColumn(name = "created_user_rid")
     private User user;
 
-    @Column(name = "deleted_by_user", nullable = false, columnDefinition = "TINYINT(1)")
+    @Column(name = "deleted_by_user", nullable = false)
     private Boolean deletedByUser = false;
 
     @Column(name = "encrypted_content", columnDefinition = "TEXT")
@@ -33,7 +33,7 @@ public class ClipboardModel {
 
     @Lob
     @Basic(fetch = FetchType.LAZY)
-    @Column(name = "file_data", columnDefinition = "LONGBLOB")
+    @Column(name = "file_data")
     private byte[] fileData;
 
     @Column(name = "file_name")

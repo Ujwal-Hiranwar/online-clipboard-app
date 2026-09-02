@@ -8,7 +8,7 @@ WORKDIR /app
 COPY target/database-0.0.1-SNAPSHOT.jar app.jar
 
 # Expose the application port (change if your app uses a different port)
-EXPOSE 9090
+EXPOSE 8081
 
 # Run the Spring Boot application
 ENTRYPOINT ["java", "-jar", "app.jar"]
