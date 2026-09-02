@@ -31,9 +31,8 @@ public class ClipboardModel {
     @Column(name = "content_kind", nullable = false)
     private ClipboardContentKind contentKind = ClipboardContentKind.TEXT;
 
-    @Lob
-    @Basic(fetch = FetchType.LAZY)
-    @Column(name = "file_data")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.BINARY)
+    @Column(name = "file_data", columnDefinition = "bytea")
     private byte[] fileData;
 
     @Column(name = "file_name")

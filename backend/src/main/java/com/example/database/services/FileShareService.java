@@ -28,6 +28,7 @@ public class FileShareService {
 
     public FileShareService(ClipboardRepository entries, UserRepository users) { this.entries = entries; this.users = users; }
 
+    @org.springframework.transaction.annotation.Transactional
     public ClipboardModel save(MultipartFile file, LocalDateTime expiryTime, boolean encrypted, Principal principal) {
         validate(file, expiryTime);
         try {
