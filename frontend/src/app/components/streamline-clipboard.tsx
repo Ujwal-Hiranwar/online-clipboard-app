@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { Send, Clipboard, Lock, File, Upload, Download, X, FileText, Share2, Shield, Copy, Check } from 'lucide-react'
+import { Send, Clipboard, Lock, File, Upload, Download, X, FileText, Share2, Shield, Copy, Check, Loader2 } from 'lucide-react'
 import { AlertBox } from './AlertBox'
 export function StreamlinedClipboard() {
   const [activeTab, setActiveTab] = useState('share')
@@ -25,6 +25,10 @@ export function StreamlinedClipboard() {
   const [isEncrypted, setIsEncrypted] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [expirationTime, setExpirationTime] = useState('5')
+  const [isSharing, setIsSharing] = useState(false)
+  const [isReceiving, setIsReceiving] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isAlertVisible, setIsAlertVisible] = useState({
     showNullInputAlert: false,
     showOTPAlert: false,
@@ -33,58 +37,62 @@ export function StreamlinedClipboard() {
   const futureTime = new Date();
 
   const handleTextSubmit = async () => {
+    setErrorMessage(null)
 
     if (contentType === 'text' && (inputContent === "" || inputContent === null)) {
-
       setIsAlertVisible({
         showNullInputAlert: true,
         showOTPAlert: false,
         showBoundExeedAlert: false
       })
+      return
     }
-    else if (contentType === 'text' && inputContent.length > 500) {
+
+    if (contentType === 'text' && inputContent.length > 500) {
       setIsAlertVisible({
         showNullInputAlert: false,
         showOTPAlert: false,
         showBoundExeedAlert: true
       })
+      return
     }
-    else {
 
-      setIsAlertVisible({
-        showNullInputAlert: false,
-        showOTPAlert: true,
-        showBoundExeedAlert: false
-      })
+    if (contentType === 'file') {
+      if (!selectedFile) {
+        setIsAlertVisible({ showNullInputAlert: true, showOTPAlert: false, showBoundExeedAlert: false })
+        return
+      }
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        setIsAlertVisible({ showNullInputAlert: false, showOTPAlert: false, showBoundExeedAlert: true })
+        return
+      }
+    }
 
+    setIsAlertVisible({
+      showNullInputAlert: false,
+      showOTPAlert: false,
+      showBoundExeedAlert: false
+    })
+    setIsSharing(true)
 
-
+    try {
       futureTime.setMinutes(futureTime.getMinutes() + Number(expirationTime))
       if (contentType === 'file') {
-        if (!selectedFile) {
-          setIsAlertVisible({ showNullInputAlert: true, showOTPAlert: false, showBoundExeedAlert: false })
-          return
-        }
-        if (selectedFile.size > 10 * 1024 * 1024) {
-          setIsAlertVisible({ showNullInputAlert: false, showOTPAlert: false, showBoundExeedAlert: true })
-          return
-        }
-        try {
-          const formData = new FormData()
-          formData.append("file", selectedFile)
-          formData.append("expiryTime", futureTime.toISOString())
-          formData.append("encrypted", String(isEncrypted))
-          const response = await api.post("/api/files", formData)
-          setShareOtp(response.data.otp)
-          setShareLink(`${window.location.origin}/receive?token=${response.data.shareToken}`)
-        } catch (error) {
-          console.error("Error uploading file:", error)
-          return
-        }
+        const formData = new FormData()
+        formData.append("file", selectedFile as Blob)
+        formData.append("expiryTime", futureTime.toISOString())
+        formData.append("encrypted", String(isEncrypted))
+        const response = await api.post("/api/files", formData)
+        setShareOtp(response.data.otp)
+        setShareLink(`${window.location.origin}/receive?token=${response.data.shareToken}`)
+        setIsAlertVisible({
+          showNullInputAlert: false,
+          showOTPAlert: true,
+          showBoundExeedAlert: false
+        })
       } else {
         const oneTimePassword = Math.floor(1000 + Math.random() * 9000).toString()
         if (isEncrypted == true) {
-        try {
           const response = await api.post(`/api/encrypted/save`, {
             "createdUserRid": null,
             "deletedByUser": false,
@@ -95,12 +103,7 @@ export function StreamlinedClipboard() {
             headers: { "Content-Type": "application/json" },
           });
           setShareLink(`${window.location.origin}/receive?token=${response.data.shareToken}`)
-        } catch (error) {
-          console.error("Error sending clipboard data:", error);
-          throw error;
-        }
         } else {
-        try {
           const response = await api.post(`/api/post/text`, {
             "createdUserRid": null,
             "deletedByUser": false,
@@ -112,23 +115,33 @@ export function StreamlinedClipboard() {
             headers: { "Content-Type": "application/json" },
           });
           setShareLink(`${window.location.origin}/receive?token=${response.data.shareToken}`)
-        } catch (error) {
-          console.log("error in sending data to backend " + error)
-          throw error;
         }
-        }
-
         setShareOtp(oneTimePassword)
+        setIsAlertVisible({
+          showNullInputAlert: false,
+          showOTPAlert: true,
+          showBoundExeedAlert: false
+        })
       }
 
+      setInputContent('')
+      setSelectedFile(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      setIsEncrypted(false)
+      setExpirationTime('5')
+    } catch (error: any) {
+      console.error("Error sharing content:", error)
+      const serverMsg = error?.response?.data?.message || error?.response?.data || error?.message
+      setErrorMessage(
+        typeof serverMsg === 'string' && serverMsg.length > 0 && serverMsg.length < 200
+          ? `Failed to share content: ${serverMsg}`
+          : "Failed to share content. Please check your network or try again."
+      )
+    } finally {
+      setIsSharing(false)
     }
-
-
-    setInputContent('')
-    setSelectedFile(null)
-    setIsEncrypted(false)
-    setExpirationTime('5')
-
   }
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -146,6 +159,7 @@ export function StreamlinedClipboard() {
       showOTPAlert: false,
       showBoundExeedAlert: false
     })
+    setErrorMessage(null)
   }
   const removeFile = () => {
     setSelectedFile(null)
@@ -155,8 +169,13 @@ export function StreamlinedClipboard() {
   }
 
   const handleReceive = async () => {
-
+    setErrorMessage(null)
     let receiveCode = enteredotp.trim()
+    if (!receiveCode) {
+      setErrorMessage("Please enter an OTP or share link to receive content.")
+      return
+    }
+
     try {
       const parsed = new URL(receiveCode)
       const token = parsed.searchParams.get('token')
@@ -167,6 +186,7 @@ export function StreamlinedClipboard() {
       }
     } catch { /* The input is an OTP, not a URL. */ }
 
+    setIsReceiving(true)
     try {
       const metadata = await api.get(`/api/get/text/${receiveCode}`)
       if (metadata.data.contentKind === "FILE") {
@@ -178,12 +198,20 @@ export function StreamlinedClipboard() {
       setReceivedFile(null)
       setOutputContent(response.data)
       return response.data
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching clipboard data:", error);
+      const status = error?.response?.status
+      if (status === 404 || status === 400) {
+        setErrorMessage("Invalid OTP or content not found. Please verify the code.")
+      } else if (status === 410) {
+        setErrorMessage("This shared content has expired.")
+      } else {
+        setErrorMessage("Failed to receive content. Please verify your OTP or try again.")
+      }
       return null;
+    } finally {
+      setIsReceiving(false)
     }
-
-
   }
 
   const copyShareLink = async () => {
@@ -204,6 +232,7 @@ export function StreamlinedClipboard() {
 
   const downloadReceivedFile = async () => {
     if (!receivedFile) return
+    setIsDownloading(true)
     try {
       const response = await api.get(`/api/files/${enteredotp}`, { responseType: "blob" })
       const url = URL.createObjectURL(response.data)
@@ -214,20 +243,53 @@ export function StreamlinedClipboard() {
       link.click()
       link.remove()
       URL.revokeObjectURL(url)
-    } catch (error) { console.error("Error downloading file:", error) }
+    } catch (error) {
+      console.error("Error downloading file:", error)
+      setErrorMessage("Failed to download received file. Please try again.")
+    } finally {
+      setIsDownloading(false)
+    }
   }
 
-
-
-
   return (
-
     <Card className="w-full max-w-3xl mx-auto">
-      {isAlertVisible.showOTPAlert && shareotp ? <AlertBox type="success" heading="Successfully Sent Content!" message={shareotp} isVisible={isAlertVisible.showOTPAlert} onClose={closeAlert} /> : null}
-      {isAlertVisible.showNullInputAlert && <AlertBox type="error" heading="Empty Content" message="Please enter some content to share." isVisible={isAlertVisible.showNullInputAlert} onClose={closeAlert} />}
-      {isAlertVisible.showBoundExeedAlert && <AlertBox type="error" heading="Content length Exceeded" message="Content length should not exceed 500 characters." isVisible={isAlertVisible.showBoundExeedAlert} onClose={closeAlert} />}
+      {errorMessage && (
+        <AlertBox
+          type="error"
+          heading="Error"
+          message={errorMessage}
+          isVisible={Boolean(errorMessage)}
+          onClose={closeAlert}
+        />
+      )}
+      {isAlertVisible.showOTPAlert && shareotp ? (
+        <AlertBox
+          type="success"
+          heading="Successfully Sent Content!"
+          message={shareotp}
+          isVisible={isAlertVisible.showOTPAlert}
+          onClose={closeAlert}
+        />
+      ) : null}
+      {isAlertVisible.showNullInputAlert && (
+        <AlertBox
+          type="error"
+          heading="Empty Content"
+          message="Please enter some content to share."
+          isVisible={isAlertVisible.showNullInputAlert}
+          onClose={closeAlert}
+        />
+      )}
+      {isAlertVisible.showBoundExeedAlert && (
+        <AlertBox
+          type="error"
+          heading="Content length Exceeded"
+          message="Content length should not exceed 500 characters."
+          isVisible={isAlertVisible.showBoundExeedAlert}
+          onClose={closeAlert}
+        />
+      )}
       <CardHeader>
-
         <CardTitle>Streamlined Online Clipboard</CardTitle>
         <CardDescription>Securely share text and files with ease</CardDescription>
       </CardHeader>
@@ -315,23 +377,15 @@ export function StreamlinedClipboard() {
                   checked={isEncrypted}
                   onCheckedChange={setIsEncrypted}
                 />
-
                 <Label htmlFor="encrypt-switch">Encrypt before storing</Label>
               </div>
-
 
               <div className="flex items-center space-x-2">
                 <Label htmlFor="expiration-time" className="text-sm text-gray-700">Expire after:</Label>
                 <select
                   id="expiration-time"
                   value={expirationTime}
-                  onChange={
-                    (e) => {
-
-                      setExpirationTime(e.target.value)
-                    }
-
-                  }
+                  onChange={(e) => setExpirationTime(e.target.value)}
                   className="border rounded p-1 text-sm"
                 >
                   <option value="5">5 minutes</option>
@@ -342,14 +396,23 @@ export function StreamlinedClipboard() {
               </div>
 
               <div className="flex justify-end">
-                <Button onClick={() => {
-                  handleTextSubmit();
-                }} className="w-32">
-                  <Share2 className="mr-2 h-4 w-4" /> Share
+                <Button
+                  onClick={() => {
+                    handleTextSubmit();
+                  }}
+                  className="w-36"
+                  disabled={isSharing}
+                >
+                  {isSharing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sharing...
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="mr-2 h-4 w-4" /> Share
+                    </>
+                  )}
                 </Button>
-
-
-
               </div>
 
               {shareLink && (
@@ -367,7 +430,6 @@ export function StreamlinedClipboard() {
                   {isLinkCopied && <p className="text-xs text-green-600">Link copied to clipboard.</p>}
                 </div>
               )}
-
             </div>
           </TabsContent>
           <TabsContent value="receive">
@@ -377,24 +439,71 @@ export function StreamlinedClipboard() {
                 placeholder="Enter OTP or share link"
                 value={enteredotp}
                 onChange={(e) => setEnteredotp(e.target.value)}
+                disabled={isReceiving}
               />
               <div className="flex justify-end">
-                <Button onClick={handleReceive} className="w-40">
-                  <Lock className="mr-2 h-4 w-4" /> Verify & Receive
+                <Button onClick={handleReceive} className="w-48" disabled={isReceiving}>
+                  {isReceiving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Receiving...
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="mr-2 h-4 w-4" /> Verify & Receive
+                    </>
+                  )}
                 </Button>
               </div>
-              <Textarea
-                placeholder={receivedFile ? `File ready: ${receivedFile.name}` : "Received content will appear here..."}
-                value={outputContent}
-                readOnly
-                className="min-h-[150px]"
-              />
+              <div className="relative">
+                <Textarea
+                  placeholder={
+                    isReceiving
+                      ? "Receiving content, please wait..."
+                      : receivedFile
+                      ? `File ready: ${receivedFile.name}`
+                      : "Received content will appear here..."
+                  }
+                  value={outputContent}
+                  readOnly
+                  className="min-h-[150px]"
+                />
+                {isReceiving && (
+                  <div className="absolute inset-0 bg-white/60 flex items-center justify-center rounded-md">
+                    <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
+                      <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                      Loading content...
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="flex justify-between">
-                <Button variant="outline" onClick={() => { navigator.clipboard.writeText(outputContent); console.log("copied") }} className="w-40">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (outputContent) {
+                      navigator.clipboard.writeText(outputContent);
+                    }
+                  }}
+                  className="w-40"
+                  disabled={!outputContent || isReceiving}
+                >
                   <Clipboard className="mr-2 h-4 w-4" /> Copy
                 </Button>
-                <Button variant="outline" className="w-40" onClick={downloadReceivedFile} disabled={!receivedFile}>
-                  <Download className="mr-2 h-4 w-4" /> Download
+                <Button
+                  variant="outline"
+                  className="w-44"
+                  onClick={downloadReceivedFile}
+                  disabled={!receivedFile || isDownloading || isReceiving}
+                >
+                  {isDownloading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" /> Download
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
@@ -410,4 +519,3 @@ export function StreamlinedClipboard() {
     </Card>
   )
 }
-
